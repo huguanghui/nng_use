@@ -1,0 +1,11 @@
+[
+{
+  "directory": "/home/hgh/Documents/GIT/nng_use",
+  "arguments": ["/usr/bin/ccache", "/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-I/home/hgh/Documents/GIT/nng_use/third_part/nng/include", "-o", "build/.objs/async_client/linux/x86_64/debug/demo/async/client.c.o", "demo/async/client.c"],
+  "file": "demo/async/client.c"
+},
+{
+  "directory": "/home/hgh/Documents/GIT/nng_use",
+  "arguments": ["/usr/bin/ccache", "/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-I/home/hgh/Documents/GIT/nng_use/third_part/nng/include", "-o", "build/.objs/async_server/linux/x86_64/debug/demo/async/server.c.o", "demo/async/server.c"],
+  "file": "demo/async/server.c"
+}]
