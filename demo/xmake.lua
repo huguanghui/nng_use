@@ -1,1 +1,2 @@
 includes("async")
+includes("rest")
