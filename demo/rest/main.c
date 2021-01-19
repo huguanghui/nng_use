@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "nng/nng.h"
 #include "nng/protocol//reqrep0/req.h"
@@ -23,7 +24,7 @@ void fatal(const char what, int rv)
  */
 typedef enum {
     SEND_REQ, /*!< send REQ request */
-    RECV_REQ, /*!< receive REP replay */
+    RECV_REP, /*!< receive REP replay */
 } job_state;
 
 /*! \struct rest_job
@@ -46,9 +47,136 @@ nng_socket req_sock;
 nng_mtx* job_lock;
 rest_job* job_freelist;
 
+static void rest_job_cb(void* arg);
+
+static void rest_recycle_job(rest_job* job)
+{
+    if (job->http_res != NULL) {
+        nng_http_res_free(job->http_res);
+        job->http_res = NULL;
+    }
+    if (job->msg != NULL) {
+        nng_msg_free(job->msg);
+        job->msg = NULL;
+    }
+    if (nng_ctx_id(job->ctx) != 0) {
+        nng_ctx_close(job->ctx);
+    }
+    nng_mtx_lock(job_lock);
+    job->next = job_freelist;
+    job_freelist = job;
+    nng_mtx_unlock(job_lock);
+}
+
+static rest_job* rest_get_job()
+{
+    rest_job* job;
+
+    nng_mtx_lock(job_lock);
+    if ((job = job_freelist) != NULL) {
+        job_freelist = job->next;
+        nng_mtx_unlock(job_lock);
+        job->next = NULL;
+        return job;
+    }
+    nng_mtx_unlock(job_lock);
+    if ((job = calloc(1, sizeof(*job))) == NULL) {
+        return NULL;
+    }
+    if (nng_aio_alloc(&job->aio, rest_job_cb, job) != 0) {
+        free(job);
+        return NULL;
+    }
+    return job;
+}
+
+static void rest_http_fatal(rest_job* job, const char* fmt, int rv)
+{
+    char buf[128];
+    nng_aio* aio = job->http_aio;
+    nng_http_res* res = job->http_res;
+
+    job->http_res = NULL;
+    job->http_aio = NULL;
+    snprintf(buf, sizeof(buf), fmt, nng_strerror(rv));
+    nng_http_res_set_status(res, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR);
+    nng_http_res_set_reason(res, buf);
+    nng_aio_set_output(aio, 0, res);
+    nng_aio_finish(aio, 0);
+    rest_recycle_job(job);
+}
+
+static void rest_job_cb(void* arg)
+{
+    rest_job* job = arg;
+    nng_aio* aio = job->aio;
+    int rv;
+
+    switch (job->state) {
+    case SEND_REQ:
+        if ((rv = nng_aio_result(aio)) != 0) {
+            rest_http_fatal(job, "send REQ failed: %s", rv);
+            return;
+        }
+        job->msg = NULL;
+        nng_aio_set_msg(aio, NULL);
+        job->state = RECV_REP;
+        nng_ctx_recv(job->ctx, aio);
+        break;
+    case RECV_REP:
+        if ((rv = nng_aio_result(aio)) != 0) {
+            rest_http_fatal(job, "recv reply failed: %s", rv);
+            return;
+        }
+        job->msg = nng_aio_get_msg(aio);
+        rv = nng_http_res_copy_data(job->http_res, nng_msg_body(job->msg), nng_msg_len(job->msg));
+        if (rv != 0) {
+            rest_http_fatal(job, "nng_http_res_copy_data: %s", rv);
+            return;
+        }
+        nng_aio_set_output(job->http_aio, 0, job->http_res);
+        nng_aio_finish(job->http_aio, 0);
+        job->http_aio = NULL;
+        job->http_res = NULL;
+        rest_recycle_job(job);
+        return;
+    default:
+        fatal("bad case", NNG_ESTATE);
+        break;
+    }
+}
+
 void rest_handle(nng_aio* aio)
 {
-    return;
+    struct rest_job* job;
+    nng_http_req* req = nng_aio_get_input(aio, 0);
+    nng_http_conn* conn = nng_aio_get_input(aio, 2);
+    size_t sz;
+    int rv;
+    void* data;
+
+    if ((job = rest_get_job()) == NULL) {
+        nng_aio_finish(aio, NNG_ENOMEM);
+        return;
+    }
+    if (((rv = nng_http_res_alloc(&job->http_res)) != 0) || ((rv = nng_ctx_open(&job->ctx, req_sock)) != 0)) {
+        rest_recycle_job(job);
+        nng_aio_finish(aio, rv);
+        return;
+    }
+
+    nng_http_req_get_data(req, &data, &sz);
+    job->http_aio = aio;
+
+    if ((rv = nng_msg_alloc(&job->msg, sz)) != 0) {
+        rest_http_fatal(job, "nng_msg_alloc: %s", rv);
+        return;
+    }
+
+    memcpy(nng_msg_body(job->msg), data, sz);
+    nng_aio_set_msg(job->aio, job->msg);
+    job->state = SEND_REQ;
+    nng_ctx_send(job->ctx, job->aio);
 }
 
 void rest_start(uint16_t port)
