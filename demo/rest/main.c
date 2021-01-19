@@ -3,6 +3,7 @@
 
 #include "nng/nng.h"
 #include "nng/protocol//reqrep0/req.h"
+#include "nng/supplemental/http/http.h"
 #include "nng/supplemental/util/platform.h"
 
 #define REST_URL "http://127.0.0.1:%u/api/rest/rot13"
@@ -45,8 +46,15 @@ nng_socket req_sock;
 nng_mtx* job_lock;
 rest_job* job_freelist;
 
+void rest_handle(nng_aio* aio)
+{
+    return;
+}
+
 void rest_start(uint16_t port)
 {
+    nng_http_server* server;
+    nng_http_handler* handler;
     char rest_addr[128];
     nng_url* url;
     int rv;
@@ -68,10 +76,38 @@ void rest_start(uint16_t port)
         fatal("nng_req0_open", rv);
     }
 #endif
+    rv = nng_http_server_hold(&server, url);
+    if (rv != 0) {
+        fatal("nng_http_server_hold", rv);
+    }
+    rv = nng_http_handler_alloc(&handler, url->u_path, rest_handle);
+    if (rv != 0) {
+        fatal("nng_http_handler_alloc", rv);
+    }
+    rv = nng_http_handler_set_method(handler, "POST");
+    if (rv != 0) {
+        fatal("nng_http_handler_set_method", rv);
+    }
+    rv = nng_http_handler_collect_body(handler, true, 1024 * 128);
+    if (rv != 0) {
+        fatal("nng_http_handler_collect_body", rv);
+    }
+    rv = nng_http_server_add_handler(server, handler);
+    if (rv != 0) {
+        fatal("nng_http_server_add_handler", rv);
+    }
+    rv = nng_http_server_start(server);
+    if (rv != 0) {
+        fatal("nng_http_server_start", rv);
+    }
+    nng_url_free(url);
 }
 
 int main(int argc, char* argv[])
 {
-    printf("HGH-TEST[%s %d]\n", __FUNCTION__, __LINE__);
+    rest_start(8888);
+    while (1) {
+        sleep(3600);
+    }
     return 0;
 }
