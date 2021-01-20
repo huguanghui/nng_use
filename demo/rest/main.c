@@ -181,22 +181,19 @@ void rest_handle(nng_aio* aio)
 }
 #endif
 
-void rest_handle(nng_aio *aio)
+void rest_handle(nng_aio* aio)
 {
-    nng_http_req *req = nng_aio_get_input(aio, 0);
-    nng_http_res *res;
+    nng_http_req* req = nng_aio_get_input(aio, 0);
+    nng_http_res* res;
     size_t sz;
     int rv;
-    void*data;
+    void* data;
 
     nng_http_req_get_data(req, &data, &sz);
-    if (( (rv = nng_http_res_alloc(&res)) != 0 ) ||
-            ((rv = nng_http_res_copy_data(res, data, sz))!=0)||
-            ((rv = nng_http_res_set_header(res, "Content-Type", "test/plain")) != 0) ||
-            ((rv = nng_http_res_set_status(aio, NNG_HTTP_STATUS_OK)) != 0)) {
-            nng_http_res_free(res);
-            nng_aio_finish(aio, rv);
-            return;
+    if (((rv = nng_http_res_alloc(&res)) != 0) || ((rv = nng_http_res_copy_data(res, data, sz)) != 0) || ((rv = nng_http_res_set_header(res, "Content-Type", "test/plain")) != 0) || ((rv = nng_http_res_set_status(aio, NNG_HTTP_STATUS_OK)) != 0)) {
+        nng_http_res_free(res);
+        nng_aio_finish(aio, rv);
+        return;
     }
     nng_aio_set_output(aio, 0, res);
     nng_aio_finish(aio, 0);
@@ -231,6 +228,7 @@ void rest_start(uint16_t port)
     if (rv != 0) {
         fatal("nng_http_server_hold", rv);
     }
+    printf("HGH-TEST[%s %d] u_path: %s\n", __FUNCTION__, __LINE__, url->u_path);
     rv = nng_http_handler_alloc(&handler, url->u_path, rest_handle);
     if (rv != 0) {
         fatal("nng_http_handler_alloc", rv);
@@ -251,6 +249,7 @@ void rest_start(uint16_t port)
     if (rv != 0) {
         fatal("nng_http_server_start", rv);
     }
+    printf("HGH-TEST[%s %d]\n", __FUNCTION__, __LINE__);
     nng_url_free(url);
 }
 

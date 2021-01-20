@@ -9,3 +9,4 @@ option("nng_sdk")
    set_description("NNG SDK")
 
 includes("demo")
+includes("test")

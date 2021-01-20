@@ -1,0 +1,7 @@
+target("nng_test")
+    set_kind("binary")
+    add_includedirs("$(nng_sdk)/include","$(nng_sdk)/src")
+    add_linkdirs("$(nng_sdk)/lib")
+    add_links("nng")
+    add_syslinks("pthread", "m", "rt", "dl")
+    add_files("httpserver.c", "convey.c")
