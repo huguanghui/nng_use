@@ -146,6 +146,7 @@ static void rest_job_cb(void* arg)
     }
 }
 
+#if 0
 void rest_handle(nng_aio* aio)
 {
     struct rest_job* job;
@@ -177,6 +178,28 @@ void rest_handle(nng_aio* aio)
     nng_aio_set_msg(job->aio, job->msg);
     job->state = SEND_REQ;
     nng_ctx_send(job->ctx, job->aio);
+}
+#endif
+
+void rest_handle(nng_aio *aio)
+{
+    nng_http_req *req = nng_aio_get_input(aio, 0);
+    nng_http_res *res;
+    size_t sz;
+    int rv;
+    void*data;
+
+    nng_http_req_get_data(req, &data, &sz);
+    if (( (rv = nng_http_res_alloc(&res)) != 0 ) ||
+            ((rv = nng_http_res_copy_data(res, data, sz))!=0)||
+            ((rv = nng_http_res_set_header(res, "Content-Type", "test/plain")) != 0) ||
+            ((rv = nng_http_res_set_status(aio, NNG_HTTP_STATUS_OK)) != 0)) {
+            nng_http_res_free(res);
+            nng_aio_finish(aio, rv);
+            return;
+    }
+    nng_aio_set_output(aio, 0, res);
+    nng_aio_finish(aio, 0);
 }
 
 void rest_start(uint16_t port)
