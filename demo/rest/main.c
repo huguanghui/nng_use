@@ -90,7 +90,8 @@ static rest_job* rest_get_job()
     return job;
 }
 
-static void rest_http_fatal(rest_job* job, const char* fmt, int rv)
+static void rest_http_fatal(
+    rest_job* job, const char* fmt, int rv)
 {
     char buf[128];
     nng_aio* aio = job->http_aio;
@@ -99,7 +100,8 @@ static void rest_http_fatal(rest_job* job, const char* fmt, int rv)
     job->http_res = NULL;
     job->http_aio = NULL;
     snprintf(buf, sizeof(buf), fmt, nng_strerror(rv));
-    nng_http_res_set_status(res, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR);
+    nng_http_res_set_status(
+        res, NNG_HTTP_STATUS_INTERNAL_SERVER_ERROR);
     nng_http_res_set_reason(res, buf);
     nng_aio_set_output(aio, 0, res);
     nng_aio_finish(aio, 0);
@@ -125,13 +127,16 @@ static void rest_job_cb(void* arg)
         break;
     case RECV_REP:
         if ((rv = nng_aio_result(aio)) != 0) {
-            rest_http_fatal(job, "recv reply failed: %s", rv);
+            rest_http_fatal(
+                job, "recv reply failed: %s", rv);
             return;
         }
         job->msg = nng_aio_get_msg(aio);
-        rv = nng_http_res_copy_data(job->http_res, nng_msg_body(job->msg), nng_msg_len(job->msg));
+        rv = nng_http_res_copy_data(job->http_res,
+            nng_msg_body(job->msg), nng_msg_len(job->msg));
         if (rv != 0) {
-            rest_http_fatal(job, "nng_http_res_copy_data: %s", rv);
+            rest_http_fatal(
+                job, "nng_http_res_copy_data: %s", rv);
             return;
         }
         nng_aio_set_output(job->http_aio, 0, job->http_res);
@@ -190,7 +195,15 @@ void rest_handle(nng_aio* aio)
     void* data;
 
     nng_http_req_get_data(req, &data, &sz);
-    if (((rv = nng_http_res_alloc(&res)) != 0) || ((rv = nng_http_res_copy_data(res, data, sz)) != 0) || ((rv = nng_http_res_set_header(res, "Content-Type", "test/plain")) != 0) || ((rv = nng_http_res_set_status(aio, NNG_HTTP_STATUS_OK)) != 0)) {
+    if (((rv = nng_http_res_alloc(&res)) != 0)
+        || ((rv = nng_http_res_copy_data(res, data, sz))
+            != 0)
+        || ((rv = nng_http_res_set_header(
+                 res, "Content-Type", "text/plain"))
+            != 0)
+        || ((rv = nng_http_res_set_status(
+                 res, NNG_HTTP_STATUS_OK))
+            != 0)) {
         nng_http_res_free(res);
         nng_aio_finish(aio, rv);
         return;
@@ -228,8 +241,10 @@ void rest_start(uint16_t port)
     if (rv != 0) {
         fatal("nng_http_server_hold", rv);
     }
-    printf("HGH-TEST[%s %d] u_path: %s\n", __FUNCTION__, __LINE__, url->u_path);
-    rv = nng_http_handler_alloc(&handler, url->u_path, rest_handle);
+    printf("HGH-TEST[%s %d] u_path: %s\n", __FUNCTION__,
+        __LINE__, url->u_path);
+    rv = nng_http_handler_alloc(
+        &handler, url->u_path, rest_handle);
     if (rv != 0) {
         fatal("nng_http_handler_alloc", rv);
     }
@@ -237,7 +252,8 @@ void rest_start(uint16_t port)
     if (rv != 0) {
         fatal("nng_http_handler_set_method", rv);
     }
-    rv = nng_http_handler_collect_body(handler, true, 1024 * 128);
+    rv = nng_http_handler_collect_body(
+        handler, true, 1024 * 128);
     if (rv != 0) {
         fatal("nng_http_handler_collect_body", rv);
     }
