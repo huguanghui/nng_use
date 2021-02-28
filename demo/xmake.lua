@@ -1,3 +1,5 @@
 includes("async")
 includes("rest")
 includes("tmp")
+includes("http_client")
+includes("bus0")

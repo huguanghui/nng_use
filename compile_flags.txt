@@ -1,0 +1,3 @@
+-I/home/hgh/Documents/GIT/nng_use/third_part/nng/include
+-I/home/hgh/Documents/GIT/nng_use/../nng/src
+-I/home/hgh/Documents/GIT/nng_use/convey
