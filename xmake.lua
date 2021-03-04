@@ -8,5 +8,10 @@ option("nng_sdk")
    set_showmenu(true)
    set_description("NNG SDK")
 
+option("nng_testing")
+   set_default("$(projectdir)/third_part/nng_testing")
+   set_showmenu(true)
+   set_description("NNG SDK")
+
 includes("demo")
 includes("test")

@@ -1,0 +1,7 @@
+target("reqrep0_t0")
+    set_kind("binary")
+    add_includedirs("$(nng_sdk)/include", "$(nng_testing)/include")
+    add_linkdirs("$(nng_sdk)/lib", "$(nng_testing)/lib")
+    add_links("nng", "nng_testing")
+    add_syslinks("pthread", "m", "rt", "dl")
+    add_files("t0.c")
